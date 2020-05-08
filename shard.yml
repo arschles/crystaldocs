@@ -1,0 +1,13 @@
+name: crystaldocs
+version: 0.1.0
+
+authors:
+  - Aaron Schlesinger <aaron@ecomaz.net>
+
+targets:
+  crystaldocs:
+    main: src/crystaldocs.cr
+
+crystal: 0.33.0
+
+license: MIT
