@@ -8,6 +8,15 @@ targets:
   crystaldocs:
     main: src/crystaldocs.cr
 
+dependencies:
+  # https://kemalcr.com/
+  kemal:
+    github: kemalcr/kemal
+  # https://github.com/CodeSteak/Nuummite
+  nuummite:
+    github: codesteak/nuummite
+    version: ~> 0.1.4
+
 crystal: 0.33.0
 
 license: MIT
