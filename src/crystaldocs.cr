@@ -1,6 +1,7 @@
 require "kemal"
 require "nuummite"
 require "process"
+require "dir"
 
 
 # TODO: Write documentation for `Crystaldocs`
@@ -27,19 +28,42 @@ module Crystaldocs
       if shard_docs.nil?
         shard_vcs_url = "https://github.com/#{shard_org}/#{shard_name}.git"
 
-        clone_process = Process.new(
-          "git clone",
+        clone_dir = "#{shard_org}/#{shard_name}"
+        Dir.mkdir_p(clone_dir)
+
+        clone_args = [
+          "clone",
           shard_vcs_url,
-          "#{shard_org}/#{shard_name}",
+          clone_dir,
+        ]
+        exec_env = {
+          "PATH" => "/home/linuxbrew/.linuxbrew/bin/:/usr/bin/:/usr/local/bin/",
+        }
+        clone_process = Process.new(
+          "git",
+          args: clone_args,
+          env: exec_env,
+          shell: true
+          # TODO: figure out how to specify an output IO
+          # so that we can get the output later, if
+          # the command fails
           # TODO: chdir
         )
+        output = clone_process.output?
         if !clone_process.wait.success?
+          if !output.nil?
+            print "output = #{output.gets_to_end}"
+          else
+            print "no output available"
+          end
           halt env, status_code: 500, response: "Couldn't clone"
         end
 
         docs_process = Process.new(
-          "crystal docs",
-          chdir="#{shard_org}/#{shard_name}"
+          "crystal",
+          args: ["docs"],
+          chdir: clone_dir,
+          shell: true
         )                
         if !docs_process.wait.success?
           halt env, status_code: 500, response: "Couldn't generate docs"
@@ -56,6 +80,20 @@ module Crystaldocs
         #     see https://forum.crystal-lang.org/t/hosted-documentation-site/1896/32 for more detail
         # 4. ?
         # 5. PROFIT! somehow (!) copy the docs into the database
+        
+        # go into this directory
+        docs_dir = "#{clone_dir}/docs"
+
+        # TODO: read all the other asset files into the DB
+        # in addition to index.html
+        file = File.new("#{docs_dir}/index.html")
+        index_html_content = file.gets_to_end
+        file.close
+        db[db_key] = index_html_content
+
+        # then, copy the "index.html" out and put it into the DB
+        # under the "#{shard_org}/#{shard_name}/index.html" key
+
         "No documentation available for shard #{shard_org}/#{shard_name}"
       else
         shard_docs
