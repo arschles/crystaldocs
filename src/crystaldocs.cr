@@ -2,6 +2,7 @@ require "kemal"
 require "nuummite"
 require "process"
 require "dir"
+require "io"
 
 
 # TODO: Write documentation for `Crystaldocs`
@@ -26,12 +27,16 @@ module Crystaldocs
       db_key = "#{shard_org}/#{shard_name}/index.html"
       shard_docs = db[db_key]?
       if shard_docs.nil?
+        # TODO: just download the freaking ZIP!!!!
+        # https://github.com/CodeSteak/Nuummite/archive/master.zip
         shard_vcs_url = "https://github.com/#{shard_org}/#{shard_name}.git"
 
-        clone_dir = "#{shard_org}/#{shard_name}"
+        clone_dir = "customdocs/#{shard_org}/#{shard_name}"
+        puts "Trying to create directory #{clone_dir}\n"
         Dir.mkdir_p(clone_dir)
 
         clone_args = [
+          "git",
           "clone",
           shard_vcs_url,
           clone_dir,
@@ -39,23 +44,32 @@ module Crystaldocs
         exec_env = {
           "PATH" => "/home/linuxbrew/.linuxbrew/bin/:/usr/bin/:/usr/local/bin/",
         }
+        output_io = IO::Memory.new
+        err_io = IO::Memory.new
         clone_process = Process.new(
-          "git",
+          "bash",
           args: clone_args,
           env: exec_env,
-          shell: true
+          shell: true,
+          output: output_io,
+          error: err_io,
           # TODO: figure out how to specify an output IO
           # so that we can get the output later, if
           # the command fails
           # TODO: chdir
         )
+        puts output_io.to_s
+        puts "\n"
+        puts err_io.to_s
+        puts "\n"
         output = clone_process.output?
         if !clone_process.wait.success?
           if !output.nil?
-            print "output = #{output.gets_to_end}"
+            puts "output = #{output.gets_to_end}"
           else
-            print "no output available"
+            puts "no output available\n"
           end
+          puts "we couldn't clone but don't know why!!!\n"
           halt env, status_code: 500, response: "Couldn't clone"
         end
 
