@@ -33,20 +33,23 @@ module Crystaldocs
         shard_vcs_url = "https://github.com/CodeSteak/Nuummite/archive/master.zip"
         # shard_vcs_url = "https://github.com/#{shard_org}/#{shard_name}.git"
 
-        mb_response = HTTPUtils.get(shard_vcs_url)
-        if mb_response.nil?
-          halt env, status_code: 500, response: "Couldn't download code zip file, no response"
-        else
-          puts mb_response.body.lines.first
-          mb_io : IO | Nil = mb_response.body_io?
-          if mb_io.nil?
-            halt env, status_code: 500, response: "Couldn't download code zip file, no IO"
+        dir_name: String = HTTPUtils.get(shard_vcs_url) do |response|
+          body_io : IO | Nil = response.body_io?
+          if body_io.nil?
+            halt env, status_code: 500, response: "Couldn't download code zip file, no response"
           else
-            Zip::Reader.open(mb_io) do |zip|
-              zip.each_entry do |entry|
-                puts entry.filename
-              end
+            dir_name = Dir.tempdir
+            Zip::Reader.open(body_io) do |zip|
+                zip.each_entry do |entry|
+                  fully_qualified = "#{dir_name}/#{entry.filename}"
+                  # TODO: implement write_to_dir
+                  write_to_dir(
+                    fully_qualified,
+                    entry.contents
+                  )
+                end
             end
+            return dir_name
           end
         end
         # clone_dir = "customdocs/#{shard_org}/#{shard_name}"
