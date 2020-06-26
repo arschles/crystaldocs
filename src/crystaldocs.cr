@@ -6,6 +6,7 @@ require "io"
 require "http/client"
 require "zip"
 require "./http.cr"
+require "./files.cr"
 
 
 # TODO: Write documentation for `Crystaldocs`
@@ -33,7 +34,8 @@ module Crystaldocs
         shard_vcs_url = "https://github.com/CodeSteak/Nuummite/archive/master.zip"
         # shard_vcs_url = "https://github.com/#{shard_org}/#{shard_name}.git"
 
-        dir_name: String = HTTPUtils.get(shard_vcs_url) do |response|
+        dir_name: String = "unknown"
+        HTTPUtils.get(shard_vcs_url) do |response|
           body_io : IO | Nil = response.body_io?
           if body_io.nil?
             halt env, status_code: 500, response: "Couldn't download code zip file, no response"
@@ -41,17 +43,33 @@ module Crystaldocs
             dir_name = Dir.tempdir
             Zip::Reader.open(body_io) do |zip|
                 zip.each_entry do |entry|
-                  fully_qualified = "#{dir_name}/#{entry.filename}"
-                  # TODO: implement write_to_dir
-                  write_to_dir(
-                    fully_qualified,
-                    entry.contents
-                  )
+                  if entry.file?
+                    fully_qualified_entry_path = entry.filename
+                    fully_qualified = "#{dir_name}/#{fully_qualified_entry_path}"
+                    puts "About to write zip entry #{fully_qualified}"
+
+                    # build a complete array of the bytes
+                    # bytes_array = Array(UInt8).new
+                    # entry.io.each_byte do |byte|
+                    #   bytes_array << byte
+                    # end
+
+                    # # fill in a slice of the bytes in the array
+                    # byte_slice = Slice.new(bytes_array.size) { |i| 
+                    #   bytes_array[i]
+                    # }
+
+                    Files.write_to_dir(
+                      fully_qualified,
+                      # byte_slice
+                      entry.io.gets_to_end
+                    )
+                  end
                 end
             end
-            return dir_name
           end
         end
+        puts "all of the zip files from #{shard_vcs_url} were saved to #{dir_name}"
         # clone_dir = "customdocs/#{shard_org}/#{shard_name}"
         # puts "Trying to create directory #{clone_dir}\n"
         # Dir.mkdir_p(clone_dir)
